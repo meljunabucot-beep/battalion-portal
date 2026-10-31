@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% block title %}Manage Offices{% endblock %}
+{% block content %}
+<div class="dashboard-header">
+  <div>
+    <h2>Office / Section Management</h2>
+    <p>Add, rename, reorder, or deactivate sections. Codes are permanent once created.</p>
+  </div>
+</div>
+
+<div class="panel">
+  <div class="panel-title">Add New Office</div>
+  <form method="post" action="/admin/offices/add">
+    <div class="add-office-grid">
+      <div class="add-office-field">
+        <label>Code <span style="color:var(--danger);">*</span></label>
+        <input name="code" required
+               pattern="[a-zA-Z0-9_-]+"
+               title="Letters, numbers, dash, and underscore only"
+               placeholder="e.g. s5" />
+        <small>Lowercase, no spaces. Cannot be changed later.</small>
+      </div>
+
+      <div class="add-office-field">
+        <label>Display Name <span style="color:var(--danger);">*</span></label>
+        <input name="name" required placeholder="e.g. S5 — Civil-Military Operations" />
+        <small>&nbsp;</small>
+      </div>
+
+      <div class="add-office-field">
+        <label>Sort Order</label>
+        <input name="sort_order" type="number" value="200" />
+        <small>&nbsp;</small>
+      </div>
+
+      <div class="add-office-field add-office-action">
+        <label>&nbsp;</label>
+        <button class="btn btn-primary">➕ Add Office</button>
+        <small>&nbsp;</small>
+      </div>
+    </div>
+  </form>
+</div>
+
+<div class="panel">
+  <div class="panel-title">All Offices ({{ offices|length }})</div>
+  <table class="doc-table">
+    <thead>
+      <tr>
+        <th>Code</th>
+        <th>Display Name</th>
+        <th>Sort</th>
+        <th>Status</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for o in offices %}
+      <tr>
+        <td data-label="Code"><strong>{{ o.code }}</strong></td>
+        <td data-label="Display Name">
+          <form method="post" action="/admin/offices/{{ o.id }}/update"
+                style="display:flex;gap:0.4rem;align-items:center;flex-wrap:wrap;">
+            <input name="name" value="{{ o.name }}" required
+                   style="flex:1 1 180px;padding:0.3rem 0.5rem;border:1px solid var(--border);border-radius:4px;" />
+            <input name="sort_order" type="number" value="{{ o.sort_order }}"
+                   style="width:80px;padding:0.3rem 0.5rem;border:1px solid var(--border);border-radius:4px;" />
+            <button class="btn btn-gold btn-sm" type="submit">💾 Save</button>
+          </form>
+        </td>
+        <td data-label="Sort">{{ o.sort_order }}</td>
+        <td data-label="Status">
+          {% if o.active %}
+            <span class="status-badge status-APPROVED">Active</span>
+          {% else %}
+            <span class="status-badge status-RETURNED">Inactive</span>
+          {% endif %}
+        </td>
+        <td data-label="Actions">
+          <div class="action-group">
+            <form method="post" action="/admin/offices/{{ o.id }}/toggle" style="display:inline;">
+              <button class="btn btn-primary btn-sm" type="submit">
+                {% if o.active %}⏸️ Deactivate{% else %}▶️ Activate{% endif %}
+              </button>
+            </form>
+            <form method="post" action="/admin/offices/{{ o.id }}/delete" style="display:inline;"
+                  onsubmit="return confirm('Delete office {{ o.code }}? This cannot be undone.');">
+              <button class="btn btn-danger btn-sm" type="submit">🗑️</button>
+            </form>
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <p style="font-size:0.8rem;color:var(--text-muted);margin-top:1rem;">
+    <strong>Deactivating</strong> an office hides it from new document routing
+    and dropdowns, but existing documents and users referencing it keep working.
+    <br>
+    <strong>Deleting</strong> is only allowed if no user belongs to the office
+    and no document references it. Otherwise deactivate it instead.
+  </p>
+</div>
+{% endblock %}

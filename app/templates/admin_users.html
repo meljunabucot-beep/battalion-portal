@@ -1,0 +1,205 @@
+{% extends "base.html" %}
+{% block title %}Manage Users{% endblock %}
+{% block content %}
+<div class="dashboard-header">
+  <div>
+    <h2>User Management</h2>
+    <p>Approve, reject, or review registered accounts.</p>
+  </div>
+  <div style="display:flex;gap:0.5rem;">
+    <a class="btn btn-gold btn-sm" href="/admin/offices">🏢 Manage Offices</a>
+  </div>
+</div>
+
+{% if pw_changed %}
+<p class="ok">
+  ✅ Password updated. The user's existing sessions have been logged out.
+</p>
+{% endif %}
+
+<div class="panel">
+  <div class="panel-title">Pending Registrations ({{ pending|length }})</div>
+  {% if not pending %}
+    <p style="color:var(--text-muted);">No pending registrations.</p>
+  {% else %}
+  <table class="doc-table">
+    <thead>
+      <tr>
+        <th>Username</th>
+        <th>Requested</th>
+        <th>Office(s)</th>
+        <th>Requested At</th>
+        <th>Approve</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for u in pending %}
+      <tr>
+        <td data-label="Username"><strong>{{ u.username }}</strong></td>
+        <td data-label="Requested">{{ u.requested_role }}</td>
+        <td data-label="Office(s)">{{ u.office_label }}</td>
+        <td data-label="Requested At">{{ u.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+        <td data-label="Approve">
+          <form method="post" action="/admin/users/{{ u.id }}/approve"
+                style="display:flex;flex-direction:column;gap:0.5rem;">
+            <select name="role" required style="padding:0.3rem 0.5rem;border-radius:4px;">
+              {% for r in roles %}
+                <option value="{{ r }}" {% if r == u.requested_role %}selected{% endif %}>{{ r }}</option>
+              {% endfor %}
+            </select>
+
+            <div class="office-checkbox-grid compact">
+              {% for o in offices %}
+              <label class="checkbox-item">
+                <input type="checkbox" name="offices" value="{{ o.code }}"
+                       {% if o.code in (u.offices or []) %}checked{% endif %} />
+                {{ o.name }}
+              </label>
+              {% endfor %}
+            </div>
+
+            <div style="display:flex;gap:0.4rem;">
+              <button class="btn btn-success btn-sm" type="submit">✅ Approve</button>
+              <button class="btn btn-danger btn-sm" type="button"
+                      onclick="document.getElementById('reject-{{ u.id }}').submit();">
+                ✖ Reject
+              </button>
+            </div>
+          </form>
+          <form id="reject-{{ u.id }}" method="post"
+                action="/admin/users/{{ u.id }}/reject" style="display:none;"></form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+</div>
+
+<div class="panel" style="margin-top:1.5rem;">
+  <div class="panel-title" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;">
+    <span>Active Users ({{ active|length }})</span>
+    <span id="onlineSummary" style="font-size:0.78rem;color:var(--text-muted);font-weight:normal;">
+      <span class="online-indicator online"></span>
+      <span id="onlineCount">—</span> online
+    </span>
+  </div>
+  <table class="doc-table" id="activeUsersTable">
+    <thead>
+      <tr>
+        <th>Username</th>
+        <th>Role</th>
+        <th>Office(s)</th>
+        <th>Approved By</th>
+        <th>Last Seen</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for u in active %}
+      <tr data-user-id="{{ u.id }}" data-username="{{ u.username }}">
+        <td data-label="Username">
+          <span class="user-status-dot {{ 'online' if u.is_online else 'offline' }}"
+                title="{{ 'Online now' if u.is_online else 'Last seen ' + u.last_seen_label }}"></span>
+          <strong>{{ u.username }}</strong>
+          {% if u.is_locked %}
+            <span class="status-badge status-LOCKED" title="Account temporarily locked out">
+              🔒 {{ (u.lockout_seconds_remaining // 60) + 1 }}m
+            </span>
+          {% endif %}
+        </td>
+        <td data-label="Role">{{ u.role }}</td>
+        <td data-label="Office(s)">{{ u.office_label }}</td>
+        <td data-label="Approved By">{{ u.approved_by or '—' }}</td>
+        <td data-label="Last Seen"><small style="color:var(--text-muted);">{{ u.last_seen_label }}</small></td>
+        <td data-label="Actions">
+          <div class="action-group">
+            <button class="btn btn-primary btn-sm" title="Change password"
+                    onclick="Admin.openPwModal('{{ u.id }}', '{{ u.username }}')">🔑</button>
+            {% if u.is_locked %}
+            <form method="post" action="/admin/users/{{ u.id }}/unlock" style="display:inline;">
+              <button class="btn btn-gold btn-sm" title="Unlock this account">🔓 Unlock</button>
+            </form>
+            {% endif %}
+            {% if u.username != user.username %}
+            <form method="post" action="/admin/users/{{ u.id }}/delete" style="display:inline;"
+                  onsubmit="return confirm('Delete user {{ u.username }}?');">
+              <button class="btn btn-danger btn-sm" title="Delete user">🗑️</button>
+            </form>
+            {% endif %}
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% if rejected %}
+<div class="panel" style="margin-top:1.5rem;">
+  <div class="panel-title">Rejected ({{ rejected|length }})</div>
+  <table class="doc-table">
+    <thead>
+      <tr>
+        <th>Username</th>
+        <th>Requested</th>
+        <th>Office(s)</th>
+        <th>Rejected By</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for u in rejected %}
+      <tr>
+        <td data-label="Username">{{ u.username }}</td>
+        <td data-label="Requested">{{ u.requested_role or '—' }}</td>
+        <td data-label="Office(s)">{{ u.office_label }}</td>
+        <td data-label="Rejected By">{{ u.approved_by or '—' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+<!-- ---- Change Password Modal ---- -->
+<div class="modal-overlay" id="pwModal">
+  <div class="modal-content" style="max-width:440px;">
+    <div class="modal-header">
+      <h3>🔑 Change Password</h3>
+      <button class="btn btn-danger btn-sm" onclick="Admin.closePwModal()">✖ Cancel</button>
+    </div>
+    <div class="modal-body">
+      <p style="color:var(--text-muted);font-size:0.85rem;margin-top:0;">
+        Setting a new password for <strong id="pwTargetUser">—</strong>.
+        Their existing sessions will be logged out immediately.
+      </p>
+
+      <form method="post" id="pwForm" onsubmit="return Admin.submitPwChange(event)">
+        <div class="form-group">
+          <label>New Password <small style="color:var(--text-muted);">(min 8 characters)</small></label>
+          <input type="password" name="new_password" id="pwNew"
+                 required minlength="8" autocomplete="new-password" />
+        </div>
+        <div class="form-group">
+          <label>Confirm New Password</label>
+          <input type="password" name="confirm_password" id="pwConfirm"
+                 required minlength="8" autocomplete="new-password" />
+        </div>
+
+        <p class="err" id="pwError" style="display:none;"></p>
+
+        <div style="display:flex;gap:0.5rem;margin-top:1rem;">
+          <button type="button" class="btn btn-gold" style="flex:1;"
+                  onclick="Admin.closePwModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary" style="flex:1;">Save Password</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>Admin.initUserStatus();</script>
+{% endblock %}

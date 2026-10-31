@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block title %}Register{% endblock %}
+{% block content %}
+<div class="panel" style="max-width:560px;margin:2rem auto;">
+  <h2>Create an Account</h2>
+  <p style="color:var(--text-muted);font-size:0.9rem;">
+    Your request will be reviewed by an administrator before you can log in.
+  </p>
+
+  {% if err == 'exists' %}<p class="err">That username is already taken.</p>{% endif %}
+  {% if err == 'pw' %}<p class="err">Passwords do not match.</p>{% endif %}
+  {% if err == 'weak' %}<p class="err">Password must be at least 6 characters.</p>{% endif %}
+  {% if err == 'role' %}<p class="err">That role cannot be self-requested.</p>{% endif %}
+  {% if err == 'office' %}<p class="err">Please select at least one office.</p>{% endif %}
+  {% if err == 'user' %}<p class="err">Username must be at least 3 characters.</p>{% endif %}
+
+  <form method="post" action="/register">
+    <div class="form-group">
+      <label>Username</label>
+      <input type="text" name="username" required />
+    </div>
+
+    <div class="form-group">
+      <label>Requested Role</label>
+      <select name="requested_role" required>
+        {% for r in roles %}
+          <option value="{{ r }}">{{ r|capitalize }}</option>
+        {% endfor %}
+      </select>
+      <small style="color:var(--text-muted);">CO and Admin roles can only be assigned by an administrator.</small>
+    </div>
+
+    <div class="form-group">
+      <label>Office(s) <span style="color:var(--danger);">*</span></label>
+      <div class="office-checkbox-grid">
+        {% for o in offices %}
+        <label class="checkbox-item">
+          <input type="checkbox" name="offices" value="{{ o.code }}" />
+          {{ o.name }}
+        </label>
+        {% endfor %}
+      </div>
+      <small style="color:var(--text-muted);">
+        Select all sections you belong to. At least one is required.
+      </small>
+    </div>
+
+    <div class="form-group">
+      <label>Password</label>
+      <div class="password-wrap">
+        <input type="password" name="password" id="regPassword" required />
+        <button type="button" class="password-toggle"
+                onclick="togglePassword('regPassword', this)"
+                aria-label="Show password">
+          <svg class="icon-eye" viewBox="0 0 24 24" width="20" height="20"
+               fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z"></path>
+            <circle cx="12" cy="12" r="3"></circle>
+          </svg>
+          <svg class="icon-eye-off" viewBox="0 0 24 24" width="20" height="20"
+               fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round"
+               style="display:none;">
+            <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+            <line x1="1" y1="1" x2="23" y2="23"></line>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>Confirm Password</label>
+      <div class="password-wrap">
+        <input type="password" name="confirm" id="regConfirm" required />
+        <button type="button" class="password-toggle"
+                onclick="togglePassword('regConfirm', this)"
+                aria-label="Show password">
+          <svg class="icon-eye" viewBox="0 0 24 24" width="20" height="20"
+               fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z"></path>
+            <circle cx="12" cy="12" r="3"></circle>
+          </svg>
+          <svg class="icon-eye-off" viewBox="0 0 24 24" width="20" height="20"
+               fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round"
+               style="display:none;">
+            <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+            <line x1="1" y1="1" x2="23" y2="23"></line>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <button class="btn btn-gold" style="width:100%;">Submit for Approval</button>
+  </form>
+
+  <p style="text-align:center;margin-top:1rem;">
+    Already registered? <a href="/login">Login</a>
+  </p>
+</div>
+{% endblock %}

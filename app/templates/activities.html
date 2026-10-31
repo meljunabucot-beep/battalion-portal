@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+{% block title %}Activity Calendar{% endblock %}
+{% block content %}
+<div class="dashboard-header">
+  <div>
+    <h2>📅 Activity Calendar</h2>
+    <p>Everyone can view. Everyone can add their own activity.</p>
+  </div>
+  <div>
+    <button class="btn btn-gold" onclick="Activities.openAdd()">➕ Add Activity</button>
+  </div>
+</div>
+
+<div class="activity-layout">
+  <div class="panel activity-cal-panel">
+    <div class="activity-cal-header">
+      <button class="btn btn-gold btn-sm" onclick="Activities.prevMonth()">◀</button>
+      <span class="activity-cal-title" id="calTitle">—</span>
+      <button class="btn btn-gold btn-sm" onclick="Activities.nextMonth()">▶</button>
+      <button class="btn btn-primary btn-sm" onclick="Activities.today()" style="margin-left:auto;">Today</button>
+    </div>
+    <div class="activity-cal-weekdays">
+      <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>
+    </div>
+    <div class="activity-cal-grid" id="calGrid"></div>
+    
+    <!-- Color Legend -->
+    <div class="activity-legend" id="activityLegend"></div>
+  </div>
+
+  <div class="panel activity-list-panel">
+    <div class="panel-title" id="listTitle">Activities</div>
+    <div id="activityList" class="activity-list">
+      <p style="color:var(--text-muted);text-align:center;padding:1rem;">Pick a date to view activities.</p>
+    </div>
+  </div>
+</div>
+
+<!-- Add / edit modal -->
+<div class="modal-overlay" id="activityModal">
+  <div class="modal-content" style="max-width:520px;">
+    <div class="modal-header">
+      <h3 id="activityModalTitle">Add Activity</h3>
+      <button class="btn btn-danger btn-sm" onclick="Activities.closeModal()">✖</button>
+    </div>
+    <div class="modal-body">
+      <form onsubmit="return Activities.save(event)">
+        <input type="hidden" id="actId" />
+        <div class="form-group">
+          <label>Title <span style="color:var(--danger);">*</span></label>
+          <input type="text" id="actTitle" required maxlength="255" />
+        </div>
+        <div class="form-group" style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">
+          <div>
+            <label>Date <span style="color:var(--danger);">*</span></label>
+            <input type="date" id="actDate" required />
+          </div>
+          <div>
+  <label>Time (optional)</label>
+  <div class="time-select-wrap">
+    <select id="actTimeHour">
+      <option value="">--</option>
+      <option value="01">01</option>
+      <option value="02">02</option>
+      <option value="03">03</option>
+      <option value="04">04</option>
+      <option value="05">05</option>
+      <option value="06">06</option>
+      <option value="07">07</option>
+      <option value="08">08</option>
+      <option value="09">09</option>
+      <option value="10">10</option>
+      <option value="11">11</option>
+      <option value="12">12</option>
+      <option value="13">13</option>
+      <option value="14">14</option>
+      <option value="15">15</option>
+      <option value="16">16</option>
+      <option value="17">17</option>
+      <option value="18">18</option>
+      <option value="19">19</option>
+      <option value="20">20</option>
+      <option value="21">21</option>
+      <option value="22">22</option>
+      <option value="23">23</option>
+      <option value="24">24</option>
+    </select>
+    <span class="time-colon">:</span>
+    <select id="actTimeMinute">
+      <option value="">--</option>
+      <option value="00">00</option>
+      <option value="05">05</option>
+      <option value="10">10</option>
+      <option value="15">15</option>
+      <option value="20">20</option>
+      <option value="25">25</option>
+      <option value="30">30</option>
+      <option value="35">35</option>
+      <option value="40">40</option>
+      <option value="45">45</option>
+      <option value="50">50</option>
+      <option value="55">55</option>
+    </select>
+  </div>
+</div>
+        </div>
+        <div class="form-group">
+          <label>Location</label>
+          <input type="text" id="actLocation" maxlength="255" placeholder="e.g. HQ Conference Room" />
+        </div>
+        <div class="form-group">
+          <label>Description</label>
+          <textarea id="actDesc" rows="3" placeholder="Optional details…"></textarea>
+        </div>
+        <div style="display:flex;gap:0.5rem;">
+          <button type="button" class="btn btn-gold" style="flex:1;" onclick="Activities.closeModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary" style="flex:1;" id="actSaveBtn">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/activities.js"></script>
+{% endblock %}

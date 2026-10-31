@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}CO Desk{% endblock %}
+{% block content %}
+<div class="dashboard-header">
+  <div>
+    <h2>Commanding Officer — Approval Desk</h2>
+    <p>Final endorsement node for all battalion documents.</p>
+  </div>
+</div>
+
+<div class="panel">
+  <div class="panel-title">
+    <span>CO Final Review &amp; Approved Archive</span>
+    <button class="btn btn-gold btn-sm" onclick="Queue.loadCO()">🔄 Refresh</button>
+  </div>
+  <table class="doc-table">
+    <thead>
+      <tr><th>Origin</th><th>Subject</th><th>Holder</th><th>Chain</th><th>Status</th><th>Actions</th></tr>
+    </thead>
+    <tbody id="queueBody"></tbody>
+  </table>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>Queue.initCO();</script>
+{% endblock %}

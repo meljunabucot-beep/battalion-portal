@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Review Queue{% endblock %}
+{% block content %}
+<div class="dashboard-header">
+  <div>
+    <h2>Review Queue ({{ user.username }})</h2>
+    <p>Documents assigned to your section for inspection and approval.</p>
+  </div>
+</div>
+
+<div class="panel">
+  <div class="panel-title">
+    <span>Items Requiring Your Action</span>
+    <button class="btn btn-gold btn-sm" onclick="Queue.load()">🔄 Refresh</button>
+  </div>
+  <table class="doc-table">
+    <thead>
+      <tr><th>Origin</th><th>Subject</th><th>Holder</th><th>Chain</th><th>Status</th><th>Actions</th></tr>
+    </thead>
+    <tbody id="queueBody"></tbody>
+  </table>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>Queue.init({{ user.offices|tojson }});</script>
+{% endblock %}

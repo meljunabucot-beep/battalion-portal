@@ -1,0 +1,39 @@
+<div class="modal-overlay" id="manualSignModal">
+  <div class="modal-content modal-large sign-modal-compact">
+    <div class="modal-body">
+
+      <div class="manual-sign-toolbar">
+        <div class="sig-pad-wrap small">
+          <canvas id="manualSigCanvas"></canvas>
+        </div>
+        <div class="manual-sign-toolbar-actions">
+          <button type="button" class="btn btn-gold btn-sm" onclick="Signing.clearPad()">🧹 Clear</button>
+          <button type="button" class="btn btn-gold btn-sm" onclick="Signing.uploadSignature()">📁 Upload PNG</button>
+          <button type="button" class="btn btn-primary btn-sm" onclick="Signing.place()">📍 Place on Document</button>
+          <button type="button" class="btn btn-success btn-sm" id="useSavedSigBtn" style="display:none;" onclick="Signing.useSaved()">💾 Use Saved</button>
+          <button type="button" class="btn btn-gold btn-sm" id="saveSigBtn" disabled onclick="Signing.saveSaved()">⭐ Save as My Signature</button>
+          <button type="button" class="btn btn-danger btn-sm" id="clearSavedSigBtn" style="display:none;" onclick="Signing.forgetSaved()">🗑️ Forget</button>
+        </div>
+      </div>
+
+      <!-- Hidden file input for PNG signature upload -->
+      <input type="file" id="sigUploadInput"
+             accept="image/png,image/jpeg"
+             style="display:none;"
+             onchange="Signing.handleSignatureUpload(this)" />
+
+      <div id="manualSignRenderWrap">
+        <div id="manualSignLoading" style="text-align:center;padding:2rem;">Loading document preview…</div>
+        <div id="manualSignRenderArea"></div>
+      </div>
+
+      <div class="sig-pad-actions" style="margin-top:0.75rem;">
+        <button type="button" class="btn btn-danger" onclick="Signing.close()">Cancel</button>
+        <button type="button" class="btn btn-primary" id="confirmManualSignBtn" disabled onclick="Signing.confirm()">Confirm</button>
+      </div>
+
+      <!-- Hidden element kept for Signing.js compatibility -->
+      <div id="sigHint" style="display:none;"></div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Signed Archive{% endblock %}
+{% block content %}
+
+<div class="dashboard-header">
+  <div>
+    <h2>Signed Document Archive</h2>
+    <p>
+      {% if user.role == 'admin' %}
+        Every final-approval PDF across all sections.
+      {% else %}
+        Final-approval PDFs from your office(s).
+      {% endif %}
+    </p>
+  </div>
+  <div><span class="role-badge">{{ user.office_label }}</span></div>
+</div>
+
+<div class="panel">
+  <div class="gallery-toolbar">
+    <div class="gallery-search">
+      <span class="gallery-search-icon">🔍</span>
+      <input type="text" id="gallerySearch"
+             placeholder="Search by title, file, office, or type…"
+             oninput="Gallery.debouncedLoad()" />
+    </div>
+
+    {% if user.role == 'admin' %}
+    <div class="gallery-filter">
+      <label><strong>Section:</strong></label>
+      <select id="galleryOfficeFilter" onchange="Gallery.load()">
+        <option value="ALL">All Sections</option>
+        {% for o in offices %}
+          <option value="{{ o.code }}">{{ o.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    {% endif %}
+
+    <div class="gallery-count" id="galleryCount"></div>
+    
+    <button class="btn btn-primary btn-sm" id="downloadAllBtn" onclick="Gallery.downloadAll()">
+      📦 Download All
+    </button>
+  </div>
+
+  <!-- This container must exist for the JS to work -->
+  <div id="galleryGrid">
+    <div class="gallery-empty">Loading signed documents…</div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+  Gallery.init({
+    offices: {{ user.offices|tojson }},
+    isAdmin: {{ 'true' if user.role == 'admin' else 'false' }}
+  });
+</script>
+{% endblock %}

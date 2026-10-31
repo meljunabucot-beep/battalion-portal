@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}Warrior Battalion Portal{% endblock %}</title>
+
+  <script>
+    (function () {
+      try {
+        var t = localStorage.getItem('theme') || 'light';
+        document.documentElement.setAttribute('data-theme', t);
+      } catch (e) {
+        document.documentElement.setAttribute('data-theme', 'light');
+      }
+    })();
+  </script>
+
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/docx-preview@0.3.5/dist/docx-preview.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mammoth@1.6.0/mammoth.browser.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+
+  <link rel="stylesheet" href="/static/css/style.css" />
+</head>
+<body>
+
+  <header>
+    <button class="mobile-menu-btn" onclick="App.toggleMobileNav()" aria-label="Menu">
+      <span></span><span></span><span></span>
+    </button>
+
+    <div class="brand">
+      <img src="/static/img/78IB.png" alt="78IB" class="brand-logo" />
+      <div class="brand-text">
+        <h1>Warrior Battalion</h1>
+        <p>Command Document Control Portal</p>
+      </div>
+    </div>
+    <div class="user-bar">
+      {% if user and user.status == 'active' %}
+        <span class="role-badge">{{ user.username }} — {{ user.role }}</span>
+        <form method="post" action="/logout" style="display:inline;">
+          <button class="btn btn-gold btn-sm">Logout</button>
+        </form>
+      {% else %}
+        <a class="btn btn-gold btn-sm" href="/login">Login</a>
+      {% endif %}
+
+      <button id="themeToggle" class="btn theme-toggle"
+              title="Toggle light/dark mode" aria-label="Toggle theme"
+              onclick="Theme.toggle()">🌙</button>
+    </div>
+  </header>
+
+  <div class="mobile-nav-backdrop" id="mobileNavBackdrop" onclick="App.toggleMobileNav(false)"></div>
+
+  {% if user and user.status == 'active' %}
+  <div class="notification-ticker" id="notificationTicker">
+    <div class="ticker-track" id="tickerTrack">
+      <div class="ticker-item">Loading notifications…</div>
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="container">
+        <sidebar>
+      <div class="sidebar-title">Portal Navigation</div>
+      
+      <a class="nav-btn {% if request.url.path == '/' %}active{% endif %}" href="/">🏠 Home</a>
+
+      {% if user and user.status == 'active' %}
+        
+        <a class="nav-btn {% if request.url.path == '/activities' %}active{% endif %}" href="/activities">📅 Activity Calendar</a>
+
+        {% if user.role == 'uploader' %}
+          <a class="nav-btn {% if request.url.path == '/desk' %}active{% endif %}" href="/desk">📤 Upload File</a>
+          <a class="nav-btn {% if request.url.path == '/signed' %}active{% endif %}" href="/signed">📁 Signed Archive</a>
+        {% endif %}
+        
+        {% if user.role in ('officer', 'co', 'admin') %}
+          <a class="nav-btn {% if request.url.path == '/queue' %}active{% endif %}" href="/queue">📥 My Review Queue</a>
+        {% endif %}
+        
+        {% if user.role in ('officer', 'co') %}
+          <a class="nav-btn {% if request.url.path == '/signed' %}active{% endif %}" href="/signed">📁 Signed Archive</a>
+        {% endif %}
+
+        {% if user.role == 'co' %}
+          <a class="nav-btn {% if request.url.path == '/co' %}active{% endif %}" href="/co">🎖️ Commanding Officer</a>
+        {% endif %}
+        
+        {% if user.role == 'admin' %}
+          <a class="nav-btn {% if request.url.path == '/admin' %}active{% endif %}" href="/admin">🛠️ Admin Desk</a>
+          <a class="nav-btn {% if request.url.path == '/admin/offices' %}active{% endif %}" href="/admin/offices">🏢 Manage Offices</a>
+          <a class="nav-btn {% if request.url.path == '/signed' %}active{% endif %}" href="/signed">📁 Signed Archive</a>
+          <a class="nav-btn {% if request.url.path == '/admin/users' %}active{% endif %}" href="/admin/users">👥 Manage Users</a>
+          <a class="nav-btn {% if request.url.path == '/admin/files' %}active{% endif %}" href="/admin/files">🗑️ Delete Files</a>
+        {% endif %}
+        
+      {% endif %}
+
+      {% include "_calendar.html" %}
+    </sidebar>
+
+    <main>
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+
+  {% include "_sign_modal.html" %}
+  {% include "_preview_modal.html" %}
+  {% include "_return_modal.html" %}
+
+  <script>
+    window.CURRENT_USER = {{ (user.username if user and user.status == 'active' else '')|tojson }};
+    window.CURRENT_USER_ROLE = {{ (user.role if user and user.status == 'active' else '')|tojson }};
+    window.CURRENT_USER_OFFICES = {{ (user.offices if user and user.status == 'active' else [])|tojson }};
+  </script>
+  <script src="/static/js/calendar.js"></script>
+  <script src="/static/js/app.js"></script>
+  <script src="/static/js/signing.js"></script>
+  <script src="/static/js/return.js"></script>
+  <script src="/static/js/pages.js"></script>
+
+  {% if user and user.status == 'active' %}
+  <!-- ============ Direct Messages ============ -->
+  <div id="chatFab" class="chat-fab" onclick="Chat.toggle()" title="Messages">
+    💬
+    <span class="chat-fab-badge" id="chatFabBadge" style="display:none;">0</span>
+  </div>
+
+  <div id="chatPanel" class="chat-panel">
+    <div class="chat-header">
+      <button class="chat-back-btn" id="chatBackBtn" onclick="Chat.back()" style="display:none;">←</button>
+      <span class="chat-title" id="chatTitle">Messages</span>
+      <button class="chat-close-btn" onclick="Chat.close()">✕</button>
+    </div>
+
+    <div class="chat-list-view" id="chatListView">
+      <input type="text" class="chat-search" id="chatSearch"
+             placeholder="Search users…" oninput="Chat.filter()" />
+      <div class="chat-conv-list" id="chatConvList">
+        <div class="chat-empty">Loading…</div>
+      </div>
+    </div>
+
+    <div class="chat-thread-view" id="chatThreadView" style="display:none;">
+      <div class="chat-thread" id="chatThread"></div>
+
+      <div id="chatEditBanner" class="chat-edit-banner" style="display:none;">
+        <span class="chat-edit-label">✏️ Editing</span>
+        <span class="chat-edit-preview" id="chatEditPreview"></span>
+        <button type="button" class="chat-edit-cancel" onclick="Chat.cancelEdit()">Cancel</button>
+      </div>
+
+      <form class="chat-composer" onsubmit="Chat.send(event)">
+        <input type="text" id="chatInput" placeholder="Type a message…"
+               autocomplete="off" maxlength="2000" />
+        <button type="submit" class="btn btn-gold btn-sm" id="chatSendBtn">Send</button>
+      </form>
+    </div>
+  </div>
+
+  <div id="chatMsgMenu" class="chat-msg-menu-popup" style="display:none;">
+    <button type="button" onclick="Chat.startEdit()">✏️ Edit</button>
+    <button type="button" class="danger" onclick="Chat.unsend()">🗑️ Unsend</button>
+  </div>
+
+  <script src="/static/js/chat.js"></script>
+  {% endif %}
+
+  {% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,235 @@
+{% extends "base.html" %}
+{% block title %}Delete Files{% endblock %}
+{% block content %}
+<div class="dashboard-header">
+  <div>
+    <h2>🗑️ File Manager</h2>
+    <p>Browse and delete document files by month and section.</p>
+  </div>
+  <div style="display:flex;gap:0.5rem;">
+    <a class="btn btn-gold btn-sm" href="/admin">🛠️ Admin Desk</a>
+  </div>
+</div>
+
+{% if deleted_count %}
+<p class="ok">
+  ✅ Deleted {{ deleted_count }} file(s){% if freed_human %} — freed {{ freed_human }}{% endif %}.
+</p>
+{% endif %}
+
+<div class="panel">
+  <form method="get" action="/admin/files" class="file-filter-form">
+    <div class="form-group" style="margin-bottom:0;">
+      <label>Month</label>
+      <select name="month" onchange="this.form.submit()">
+        {% if not months %}
+          <option value="">— no documents yet —</option>
+        {% else %}
+          {% for m in months %}
+            <option value="{{ m.value }}" {% if m.value == selected_month %}selected{% endif %}>
+              {{ m.label }} ({{ m.count }})
+            </option>
+          {% endfor %}
+        {% endif %}
+      </select>
+    </div>
+    <div class="form-group" style="margin-bottom:0;">
+      <label>Section</label>
+      <select name="office" onchange="this.form.submit()">
+        <option value="ALL" {% if selected_office == 'ALL' %}selected{% endif %}>All Sections</option>
+        {% for o in offices %}
+          <option value="{{ o.code }}" {% if o.code == selected_office %}selected{% endif %}>
+            {{ o.name }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+  </form>
+</div>
+
+<div class="panel">
+  <div class="panel-title" style="flex-wrap:wrap;gap:0.75rem;">
+    <span>
+      {{ total_count }} file{{ 's' if total_count != 1 else '' }}
+      {% if selected_month %} in {{ selected_month }}{% endif %}
+      — {{ total_human }}
+    </span>
+    {% if total_count > 0 %}
+    <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+      <button type="button" class="btn btn-gold btn-sm" onclick="FileManager.selectAll()">☑️ Select All</button>
+      <button type="button" class="btn btn-gold btn-sm" onclick="FileManager.clearAll()">☐ Clear</button>
+    </div>
+    {% endif %}
+  </div>
+
+  {% if total_count == 0 %}
+    <p style="color:var(--text-muted);text-align:center;padding:2rem;">
+      No files in this view.
+    </p>
+  {% else %}
+  <form method="post" action="/admin/files/delete" id="filesForm"
+        onsubmit="return FileManager.confirmBulk(event)">
+    <input type="hidden" name="month" value="{{ selected_month or '' }}">
+    <input type="hidden" name="office" value="{{ selected_office }}">
+
+    <div style="overflow-x:auto;">
+      <table class="doc-table">
+        <thead>
+          <tr>
+            <th style="width:32px;"></th>
+            <th>Title</th>
+            <th>Section</th>
+            <th>Status</th>
+            <th>Type</th>
+            <th>Date</th>
+            <th>Size</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in items %}
+          {% set d = item.doc %}
+          <tr data-doc-id="{{ d.id }}">
+            <td data-label="Select">
+              <input type="checkbox" name="doc_ids" value="{{ d.id }}" class="fm-check" />
+            </td>
+            <td data-label="Title">
+              <strong>{{ d.title }}</strong><br>
+              <small style="color:var(--text-muted);">{{ d.file_name }}</small>
+            </td>
+            <td data-label="Section">
+              <strong>{{ d.origin_office.upper() }}</strong>
+            </td>
+            <td data-label="Status">
+              <span class="status-badge status-{{ d.status }}">{{ d.status }}</span>
+            </td>
+            <td data-label="Type"><small>{{ d.type }}</small></td>
+            <td data-label="Date">
+              <small>{{ d.created_at.strftime('%Y-%m-%d %H:%M') }}</small>
+            </td>
+            <td data-label="Size"><small>{{ item.size_human }}</small></td>
+            <td data-label="Actions">
+              <button type="button" class="btn btn-danger btn-sm"
+                      onclick="FileManager.deleteOne('{{ d.id }}', '{{ d.title|e }}')">
+                🗑️
+              </button>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border);display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center;">
+      <button type="submit" class="btn btn-danger">
+        🗑️ Delete Selected
+      </button>
+      <span id="fmSelectedCount" style="color:var(--text-muted);font-size:0.85rem;">
+        0 selected
+      </span>
+    </div>
+  </form>
+
+  <div style="margin-top:1.5rem;padding-top:1rem;border-top:2px dashed var(--danger);">
+    <div style="font-weight:600;color:var(--danger);margin-bottom:0.5rem;">
+      ⚠️ Danger Zone — Delete Entire Month
+    </div>
+    <p style="font-size:0.85rem;color:var(--text-muted);margin:0 0 0.75rem;">
+      This removes <strong>every document</strong> in the selected month
+      ({{ selected_month }}), across all sections. Files are deleted from
+      the server permanently. Back up first if unsure.
+    </p>
+    <button type="button" class="btn btn-danger btn-sm"
+            onclick="FileManager.openMonthModal()">
+      Delete All in {{ selected_month }}
+    </button>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Month-delete confirmation modal -->
+<div class="modal-overlay" id="fmMonthModal">
+  <div class="modal-content" style="max-width:480px;">
+    <div class="modal-header">
+      <h3 style="color:var(--danger);">⚠️ Delete Entire Month</h3>
+      <button class="btn btn-danger btn-sm" onclick="FileManager.closeMonthModal()">✖</button>
+    </div>
+    <div class="modal-body">
+      <p>
+        You are about to permanently delete <strong>{{ total_count }} file(s)</strong>
+        from <strong>{{ selected_month }}</strong>, freeing <strong>{{ total_human }}</strong>.
+      </p>
+      <p style="color:var(--danger);font-size:0.85rem;">
+        This cannot be undone. Database records and physical files will both be removed.
+      </p>
+      <form method="post" action="/admin/files/delete-month" onsubmit="return FileManager.validateMonth()">
+        <input type="hidden" name="month" value="{{ selected_month }}">
+        <div class="form-group">
+          <label>Type <code>DELETE</code> to confirm:</label>
+          <input type="text" name="confirm" id="fmMonthConfirm" placeholder="DELETE" autocomplete="off" required />
+        </div>
+        <div style="display:flex;gap:0.5rem;">
+          <button type="button" class="btn btn-gold" style="flex:1;"
+                  onclick="FileManager.closeMonthModal()">Cancel</button>
+          <button type="submit" class="btn btn-danger" style="flex:1;">
+            🗑️ Delete Permanently
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+const FileManager = {
+  updateCount() {
+    const n = document.querySelectorAll('.fm-check:checked').length;
+    const el = document.getElementById('fmSelectedCount');
+    if (el) el.textContent = n + ' selected';
+  },
+  selectAll() {
+    document.querySelectorAll('.fm-check').forEach(c => c.checked = true);
+    this.updateCount();
+  },
+  clearAll() {
+    document.querySelectorAll('.fm-check').forEach(c => c.checked = false);
+    this.updateCount();
+  },
+  deleteOne(id, title) {
+    if (!confirm(`Delete "${title}"?\n\nThis removes the document record and every file it owns.`)) return;
+    document.querySelectorAll('.fm-check').forEach(c => c.checked = false);
+    const box = document.querySelector(`input[name="doc_ids"][value="${id}"]`);
+    if (box) box.checked = true;
+    document.getElementById('filesForm').submit();
+  },
+  confirmBulk(ev) {
+    const n = document.querySelectorAll('.fm-check:checked').length;
+    if (n === 0) {
+      ev.preventDefault();
+      alert('Select at least one file to delete.');
+      return false;
+    }
+    return confirm(`Delete ${n} file(s)?\n\nThis removes the document records and every file they own. Cannot be undone.`);
+  },
+  openMonthModal() { document.getElementById('fmMonthModal').classList.add('active'); },
+  closeMonthModal() {
+    document.getElementById('fmMonthModal').classList.remove('active');
+    const f = document.getElementById('fmMonthConfirm');
+    if (f) f.value = '';
+  },
+  validateMonth() {
+    const v = (document.getElementById('fmMonthConfirm').value || '').trim().toUpperCase();
+    if (v !== 'DELETE') {
+      alert('Type DELETE exactly to confirm.');
+      return false;
+    }
+    return true;
+  },
+};
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('.fm-check').forEach(c => c.addEventListener('change', () => FileManager.updateCount()));
+  FileManager.updateCount();
+});
+</script>
+{% endblock %}

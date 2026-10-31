@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block title %}Home{% endblock %}
+{% block content %}
+<div class="dashboard-header">
+  <div>
+    <h2>WELCOME TO COMMAND CONTROL PORTAL</h2>
+    <p>Public Information &amp; Document Tracking Center</p>
+  </div>
+  <div>
+    <span class="role-badge">
+      {% if user and user.status == 'active' %}LOGGED IN: {{ user.username|upper }}{% else %}STATUS: PUBLIC HOME{% endif %}
+    </span>
+  </div>
+</div>
+
+<div class="panel">
+  <div class="panel-title">
+    <span>🎖️ Warrior Battalion Command Document Control System</span>
+  </div>
+
+  <p style="color:var(--text);line-height:1.5;">
+    Welcome to the official Document Tracking and Approval Portal. This system routes
+    directives, memos, and clearances across staff offices for sequential review.
+  </p>
+
+  <div style="background:#fff;border:1px solid var(--border);border-radius:8px;padding:1.25rem;margin-top:1rem;">
+    <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);padding-bottom:0.75rem;margin-bottom:1rem;">
+      <h3 style="color:var(--army);font-size:1.1rem;margin:0;">📢 Command Bulletins &amp; Announcements</h3>
+      {% if user and user.role == 'admin' %}
+        <button class="btn btn-gold btn-sm" onclick="App.openAnnouncementModal()">➕ Post Announcement</button>
+      {% endif %}
+    </div>
+    <div id="announcementsContainer">
+      {% for a in announcements %}
+      <div class="announcement" data-id="{{ a.id }}">
+        <div style="display:flex;gap:0.5rem;align-items:center;">
+          <span class="ann-priority ann-{{ a.priority|lower }}">{{ a.priority }}</span>
+          <strong>{{ a.title }}</strong>
+        </div>
+        <p>{{ a.content }}</p>
+        <small>📅 {{ a.created_at.strftime('%Y-%m-%d') }} • By {{ a.author }}</small>
+        {% if user and user.role == 'admin' %}
+          <button class="btn btn-danger btn-sm" style="float:right;margin-top:-2.5rem;"
+                  onclick="App.deleteAnnouncement('{{ a.id }}')">🗑️</button>
+        {% endif %}
+      </div>
+      {% endfor %}
+      {% if not announcements %}
+        <div style="text-align:center;color:var(--text-muted);padding:1rem;">
+          No active announcements.
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if not user or user.status != 'active' %}
+  <div style="margin-top:2rem;padding:1.5rem;background:#edf2ed;border-left:4px solid var(--olive);border-radius:4px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:1rem;">
+    <div>
+      <h4 style="color:var(--army);margin-bottom:0.25rem;">Authorized Personnel Access</h4>
+      <p style="font-size:0.85rem;color:var(--text-muted);">Sign in with your staff officer or section account.</p>
+    </div>
+    <a class="btn btn-gold" href="/login">Login to Access Desk</a>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Announcement modal (admin only) -->
+<div class="modal-overlay" id="announcementModal">
+  <div class="modal-content" style="max-width:480px;">
+    <div class="modal-header">
+      <h3>Post Command Announcement</h3>
+      <button class="btn btn-danger btn-sm" onclick="App.closeAnnouncementModal()">✖ Close</button>
+    </div>
+    <div class="modal-body">
+      <form onsubmit="App.submitAnnouncement(event)">
+        <div class="form-group">
+          <label>Title</label>
+          <input type="text" id="annTitle" required />
+        </div>
+        <div class="form-group">
+          <label>Priority</label>
+          <select id="annPriority">
+            <option value="General">General</option>
+            <option value="Important">Important</option>
+            <option value="Urgent">Urgent</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Message</label>
+          <textarea id="annContent" rows="4" required></textarea>
+        </div>
+        <button class="btn btn-gold" style="width:100%;">Publish</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

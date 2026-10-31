@@ -1,0 +1,269 @@
+{% extends "base.html" %}
+{% block title %}Admin Desk{% endblock %}
+{% block content %}
+<div class="dashboard-header">
+  <div>
+    <h2>System Administrator Control Desk</h2>
+    <p>Manage documents, users, and full system backups.</p>
+  </div>
+  <div style="display:flex;gap:0.5rem; align-items:center; flex-wrap: wrap;">
+    
+    <form method="post" action="/admin/toggle-maintenance" style="margin:0;">
+      <button class="btn {% if is_maintenance %}btn-success{% else %}btn-danger{% endif %} btn-sm" type="submit"
+              onclick="return confirm('Are you sure you want to {% if is_maintenance %}turn ON{% else %}turn OFF{% endif %} the website?');">
+        {% if is_maintenance %}🟢 ON{% else %}🔴 OFF{% endif %}
+      </button>
+    </form>
+ <!-- NEW UPLOADER LOCK BUTTON -->
+    <form method="post" action="/admin/toggle-uploaders" style="margin:0;">
+      <button class="btn {% if lock_uploaders %}btn-success{% else %}btn-primary{% endif %} btn-sm" type="submit"
+              onclick="return confirm('Are you sure you want to {% if lock_uploaders %}UNLOCK{% else %}LOCK{% endif %} all Uploaders?');">
+        {% if lock_uploaders %}🔓 Unlock{% else %}🔒 Lock{% endif %}
+      </button>
+    </form>
+    <a class="btn btn-gold btn-sm" href="/admin/offices">🏢 Manage Offices</a>
+    <a class="btn btn-gold btn-sm" href="/admin/users">👥 Manage Users</a>
+  </div>
+</div>
+
+<!-- ==================== SYSTEM MONITOR ==================== -->
+<div class="panel">
+  <div class="panel-title" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;">
+    <span>📊 System Monitor</span>
+    <span id="monitorUpdated" style="font-size:0.75rem;color:var(--text-muted);font-weight:normal;">
+      Loading…
+    </span>
+  </div>
+
+  <div class="monitor-grid" id="monitorGrid">
+    <!-- CPU -->
+    <div class="monitor-card">
+      <div class="monitor-head">
+        <span class="monitor-icon">🧠</span>
+        <span class="monitor-label">CPU</span>
+      </div>
+      <div class="monitor-value" id="mCpuValue">—</div>
+      <div class="monitor-bar">
+        <div class="monitor-bar-fill" id="mCpuBar" style="width:0%;"></div>
+      </div>
+      <div class="monitor-sub" id="mCpuSub">—</div>
+    </div>
+
+    <!-- Memory -->
+    <div class="monitor-card">
+      <div class="monitor-head">
+        <span class="monitor-icon">💾</span>
+        <span class="monitor-label">Memory</span>
+      </div>
+      <div class="monitor-value" id="mMemValue">—</div>
+      <div class="monitor-bar">
+        <div class="monitor-bar-fill" id="mMemBar" style="width:0%;"></div>
+      </div>
+      <div class="monitor-sub" id="mMemSub">—</div>
+    </div>
+
+    <!-- Disk -->
+    <div class="monitor-card">
+      <div class="monitor-head">
+        <span class="monitor-icon">🗄️</span>
+        <span class="monitor-label">Disk (/)</span>
+      </div>
+      <div class="monitor-value" id="mDiskValue">—</div>
+      <div class="monitor-bar">
+        <div class="monitor-bar-fill" id="mDiskBar" style="width:0%;"></div>
+      </div>
+      <div class="monitor-sub" id="mDiskSub">—</div>
+    </div>
+
+    <!-- Load -->
+    <div class="monitor-card">
+      <div class="monitor-head">
+        <span class="monitor-icon">⚡</span>
+        <span class="monitor-label">Load Avg</span>
+      </div>
+      <div class="monitor-value" id="mLoadValue">—</div>
+      <div class="monitor-sub" id="mLoadSub">1m / 5m / 15m</div>
+    </div>
+
+    <!-- Temperature -->
+    <div class="monitor-card">
+      <div class="monitor-head">
+        <span class="monitor-icon">🌡️</span>
+        <span class="monitor-label">Temperature</span>
+      </div>
+      <div class="monitor-value" id="mTempValue">—</div>
+      <div class="monitor-sub" id="mTempSub">CPU sensor</div>
+    </div>
+
+    <!-- Uptime -->
+    <div class="monitor-card">
+      <div class="monitor-head">
+        <span class="monitor-icon">⏱️</span>
+        <span class="monitor-label">Uptime</span>
+      </div>
+      <div class="monitor-value" id="mUptimeValue">—</div>
+      <div class="monitor-sub" id="mUptimeSub">Since last boot</div>
+    </div>
+
+    <!-- Storage -->
+    <div class="monitor-card">
+      <div class="monitor-head">
+        <span class="monitor-icon">📁</span>
+        <span class="monitor-label">Uploaded Files</span>
+      </div>
+      <div class="monitor-value" id="mStorageValue">—</div>
+      <div class="monitor-sub" id="mStorageSub">—</div>
+    </div>
+
+    <!-- Database -->
+    <div class="monitor-card">
+      <div class="monitor-head">
+        <span class="monitor-icon">🗃️</span>
+        <span class="monitor-label">Database</span>
+      </div>
+      <div class="monitor-value" id="mDbValue">—</div>
+      <div class="monitor-sub" id="mDbSub">—</div>
+    </div>
+  </div>
+
+  <p style="font-size:0.75rem;color:var(--text-muted);margin-top:0.75rem;">
+    Refreshes every 10 seconds. Data collected from the local server.
+  </p>
+</div>
+<!-- ==================== /SYSTEM MONITOR ==================== -->
+
+<div class="panel">
+  <div class="panel-title">
+    <span>🗄️ System Backup &amp; Restore</span>
+  </div>
+
+  <div style="display:flex;gap:1rem;flex-wrap:wrap;">
+    <div class="backup-card">
+      <div class="backup-icon">💾</div>
+      <div class="backup-body">
+        <div class="backup-title">Full System Backup</div>
+        <div class="backup-desc">
+          One ZIP containing the entire database, every uploaded file
+          (documents, signatures, signed PDFs, return marks), and a manifest
+          with record counts.
+        </div>
+        <a class="btn btn-primary btn-sm" href="/admin/backup/full">
+          ⬇️ Download Full Backup (.zip)
+        </a>
+      </div>
+    </div>
+
+    <div class="backup-card">
+      <div class="backup-icon">🗃️</div>
+      <div class="backup-body">
+        <div class="backup-title">Database Only</div>
+        <div class="backup-desc">
+          Just the SQLite database — users, documents metadata, signatures,
+          announcements, and audit logs. No uploaded files.
+        </div>
+        <a class="btn btn-primary btn-sm" href="/admin/backup/db">
+          ⬇️ Download .db
+        </a>
+      </div>
+    </div>
+
+    <div class="backup-card">
+      <div class="backup-icon">📦</div>
+      <div class="backup-body">
+        <div class="backup-title">Storage Only</div>
+        <div class="backup-desc">
+          Just the uploaded files. Useful for inspection or partial restore
+          without touching the database.
+        </div>
+        <a class="btn btn-primary btn-sm" href="/admin/backup/storage">
+          ⬇️ Download .zip
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <p style="font-size:0.78rem;color:var(--text-muted);margin-top:0.75rem;">
+    Backups are generated fresh each time and streamed to your browser.
+    Temp files are deleted after download completes.
+  </p>
+</div>
+
+<div class="panel" style="border-left:4px solid var(--danger);">
+  <div class="panel-title">
+    <span style="color:var(--danger);">⚠️ Restore From Backup</span>
+  </div>
+
+  <div class="restore-warning">
+    <strong>This replaces the entire system.</strong>
+    Restoring will <em>overwrite</em> the current database and all uploaded
+    files with the contents of the backup. A safety copy of the current
+    state is saved to <code>./backups/pre_restore_&lt;timestamp&gt;/</code> first,
+    so this is reversible if you act quickly.
+  </div>
+
+  <form id="restoreForm" onsubmit="return Admin.submitRestore(event)">
+    <div class="form-group">
+      <label>Backup File (.zip)</label>
+      <div class="file-dropzone" onclick="document.getElementById('restoreFile').click()">
+        <span id="restoreFileName">📄 Click to select backup file…</span>
+        <input type="file" id="restoreFile" accept=".zip" required
+               onchange="Admin.restoreFileSelected(this)" />
+      </div>
+      <small style="color:var(--text-muted);">
+        Select a <code>battalion_full_backup_*.zip</code> file.
+      </small>
+    </div>
+
+    <div class="form-group">
+      <label style="color:var(--danger);">
+        Type <code>RESTORE</code> to confirm:
+      </label>
+      <input type="text" id="restoreConfirm" placeholder="RESTORE"
+             autocomplete="off" required />
+    </div>
+
+    <button type="submit" id="restoreBtn" class="btn btn-danger" disabled>
+      🔄 Restore From Backup
+    </button>
+  </form>
+</div>
+
+<div class="panel">
+  <div class="panel-title" style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:1rem;">
+    <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap;">
+      <div style="display:flex;align-items:center;gap:0.4rem;">
+        <label><strong>Section:</strong></label>
+        <select id="adminSectionFilter" onchange="Admin.load()"
+                style="padding:0.35rem 0.6rem;background:#1c281e;color:#fff;border:1px solid var(--gold);border-radius:4px;">
+          <option value="ALL">All Sections</option>
+          {% for o in offices %}
+            <option value="{{ o.code }}">{{ o.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div style="display:flex;align-items:center;gap:0.4rem;">
+        <label><strong>Search:</strong></label>
+        <input type="text" id="docSearchInput" oninput="Admin.load()"
+               placeholder="Title, file, holder…"
+               style="padding:0.35rem 0.6rem;border:1px solid var(--border);border-radius:4px;" />
+      </div>
+    </div>
+    <button class="btn btn-gold btn-sm" onclick="Admin.load()">🔄 Refresh</button>
+  </div>
+
+  <table class="doc-table">
+    <thead>
+      <tr><th>Origin</th><th>Subject</th><th>Holder</th><th>Chain</th><th>Status</th><th>Actions</th></tr>
+    </thead>
+    <tbody id="reviewTableBody"></tbody>
+  </table>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  Admin.init();
+  Admin.initRestoreForm();
+  Admin.initMonitor();
+</script>
+{% endblock %}

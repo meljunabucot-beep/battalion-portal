@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% block title %}Upload Desk{% endblock %}
+{% block content %}
+<div class="dashboard-header">
+  <div>
+    <h2>{{ user.office_label }} OFFICE</h2>
+    <p>Submit documents and route them sequentially to staff sections and CO.</p>
+  </div>
+  <div><span class="role-badge">OFFICES: {{ user.office_label }}</span></div>
+</div>
+
+<div class="office-grid">
+  <div class="panel">
+    <div class="panel-title">Initiate Approval Chain</div>
+    <form id="uploadForm" onsubmit="Upload.submit(event)">
+      <div class="form-group">
+        <label>Document Subject / Title</label>
+        <input type="text" id="docTitle" required />
+      </div>
+
+      {% if user.offices|length > 1 %}
+      <div class="form-group">
+        <label>Originating Office</label>
+        <select id="originOffice" required>
+          {% for o in user.offices %}
+          <option value="{{ o }}">{{ o|upper }}</option>
+          {% endfor %}
+        </select>
+        <small style="color:var(--text-muted);">
+          You belong to multiple sections — pick which one is submitting this document.
+        </small>
+      </div>
+      {% else %}
+      <input type="hidden" id="originOffice"
+             value="{{ user.offices[0] if user.offices else '' }}" />
+      {% endif %}
+
+            <div class="form-group">
+        <label style="color:var(--gold);font-weight:bold;">
+          Route through Sections (in review order):
+        </label>
+        <div class="multi-select-box" id="recipientBox">
+          {% for o in offices %}
+          <label class="checkbox-item">
+            <input type="checkbox" value="{{ o.code }}" onchange="Upload.toggle(this)" />
+            {{ o.name }}
+          </label>
+          {% endfor %}
+
+          <label class="checkbox-item co-route-option">
+            <input type="checkbox" value="co" onchange="Upload.toggle(this)" />
+            <strong>🎖️ Commanding Officer — Final Approval</strong>
+          </label>
+        </div>
+        <div class="flow-chain-visual" id="sequencePreview">
+          Routing Path: Select sections above.
+        </div>
+        <small style="color:var(--text-muted);">
+          Check <strong>Commanding Officer</strong> only if this document needs CO
+          approval. If unchecked, the last section you select seals the document.
+          Any officer assigned to a section can sign its step.
+        </small>
+      </div>
+
+      <div class="form-group">
+        <label>Remarks / Context Summary</label>
+        <textarea id="docRemarks" rows="2"></textarea>
+      </div>
+
+      <div class="form-group">
+        <label>Attach Official Document (PDF, Image, Docx, Xlsx)</label>
+        <div class="file-dropzone" onclick="document.getElementById('docFile').click()">
+          <span id="selectedFileName">📄 Click to select file…</span>
+          <input type="file" id="docFile" required onchange="Upload.fileSelected(this)"
+                 accept=".pdf,.docx,.xlsx,.png,.jpg,.jpeg" />
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-primary" style="width:100%;" id="uploadBtn">
+        Upload &amp; Route
+      </button>
+            <div class="upload-progress" id="uploadProgress" style="display:none; margin-top: 1rem;">
+        <div class="upload-progress-bar" style="width: 100%; height: 10px; background: rgba(0,0,0,0.2); border-radius: 5px; overflow: hidden;">
+          <div class="upload-progress-fill" id="uploadProgressFill" style="height: 100%; width: 0%; background: var(--gold); transition: width 0.2s;"></div>
+        </div>
+        <div class="upload-progress-text" style="display: flex; justify-content: space-between; margin-top: 0.4rem; font-size: 0.8rem; color: #aaa;">
+          <span id="uploadProgressPct">0%</span>
+          <span id="uploadProgressBytes">Starting…</span>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title">
+      <span>Submissions Tracked</span>
+      <button class="btn btn-gold btn-sm" onclick="Upload.refresh()">🔄 Refresh</button>
+    </div>
+    <table class="doc-table">
+      <thead>
+        <tr><th>Office</th><th>Title</th><th>Holder</th><th>Chain</th><th>Status</th><th>Action</th></tr>
+      </thead>
+      <tbody id="sectionDocTableBody"></tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  Upload.init({{ user.offices|tojson }});
+</script>
+{% endblock %}

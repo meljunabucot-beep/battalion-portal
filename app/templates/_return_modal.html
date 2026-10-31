@@ -1,0 +1,39 @@
+<div class="modal-overlay" id="returnModal">
+  <div class="modal-content modal-large">
+    <div class="modal-header">
+      <h3 style="color: var(--danger);">↩️ Return Document with Markup</h3>
+      <button class="btn btn-danger btn-sm" onclick="Return.close()">✖ Cancel</button>
+    </div>
+    <div class="modal-body">
+
+      <p class="sig-pad-hint">
+        Circle or underline the mistake directly on the document using the <strong>red pen</strong>,
+        then explain below. The origin office will see both.
+      </p>
+
+      <div class="return-toolbar">
+        <button type="button" class="btn btn-gold btn-sm" onclick="Return.clearMarks()">🧹 Clear Marks</button>
+        <button type="button" class="btn btn-gold btn-sm" onclick="Return.undoLast()">↶ Undo</button>
+        <span class="return-toolbar-hint">✏️ Draw with your mouse or finger</span>
+      </div>
+
+      <div id="returnRenderWrap">
+        <div id="returnLoading" style="text-align:center;padding:2rem;color:var(--text-muted);">Loading document…</div>
+        <div id="returnRenderArea" style="position:relative;"></div>
+      </div>
+
+      <div class="form-group" style="margin-top:1rem;">
+        <label style="color:var(--danger);font-weight:bold;">Reason for Return</label>
+        <textarea id="returnReason" rows="3"
+                  placeholder="Describe what needs to be corrected... (required)"></textarea>
+      </div>
+
+      <div class="sig-pad-actions" style="margin-top:1rem;">
+        <button type="button" class="btn btn-danger" onclick="Return.close()">Cancel</button>
+        <button type="button" class="btn btn-primary" id="submitReturnBtn" onclick="Return.submit()">
+          ↩️ Submit Return
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
