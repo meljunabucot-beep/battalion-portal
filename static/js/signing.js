@@ -7,7 +7,6 @@ const Signing = (() => {
 
   const SAVED_SIG_PREFIX = 'savedSignature::';
 
-  // ---------- pad ----------
   function initPad(canvas) {
     const state = { hasInk: false, drawing: false, last: null, sized: false };
 
@@ -130,9 +129,7 @@ const Signing = (() => {
                   }
                 }
                 ctx.putImageData(imageData, 0, 0);
-              } catch (e) {
-                console.warn('White-removal skipped:', e);
-              }
+              } catch (e) {}
             }
 
             state.hasInk = true;
@@ -146,7 +143,6 @@ const Signing = (() => {
     };
   }
 
-  // ---------- saved signature ----------
   const savedKey = () => `${SAVED_SIG_PREFIX}${window.CURRENT_USER}`;
   const getSaved  = () => { try { return localStorage.getItem(savedKey()); } catch { return null; } };
   const setSaved  = (v) => { try { localStorage.setItem(savedKey(), v); } catch {} };
@@ -209,7 +205,6 @@ const Signing = (() => {
       });
       await pad.load(dataUrl, { removeWhite: true });
     } catch (err) {
-      console.error('Signature upload failed:', err);
       alert('Could not load that image: ' + err.message);
     }
   }
@@ -227,7 +222,6 @@ const Signing = (() => {
     return 'other';
   }
 
-  // ---------- open ----------
   async function open(docId) {
     if (window.CURRENT_USER_ROLE === 'admin') {
       return alert('Admins cannot sign documents. Only the assigned officer or the CO can sign.');
@@ -292,9 +286,7 @@ const Signing = (() => {
         await new Promise((res, rej) => { img.onload = res; img.onerror = rej; img.src = doc.preview_url || doc.file_url; });
 
       } else if (kind === 'other') {
-        holder.innerHTML = `<div style="padding:2rem;text-align:center;">
-          Preview unavailable. <a href="${doc.file_url}" target="_blank">Open original</a>
-        </div>`;
+        holder.innerHTML = `<div style="padding:2rem;text-align:center;">Preview unavailable.</div>`;
 
       } else if (kind === 'pdf') {
         window.pdfjsLib.GlobalWorkerOptions.workerSrc =
@@ -322,21 +314,13 @@ const Signing = (() => {
 
           await page.render({ canvasContext: c.getContext('2d'), viewport: vp }).promise;
         }
-
       } else {
         const buf = await (await fetch(doc.file_url)).arrayBuffer();
-        await window.docx.renderAsync(buf, holder, holder, {
-          inWrapper: true,
-          breakPages: true,
-          ignoreLastRenderedPageBreak: false,
-          renderHeaders: true,
-          renderFooters: true,
-        });
+        await window.docx.renderAsync(buf, holder, holder, { inWrapper: true, breakPages: true });
       }
       loading.style.display = 'none';
     } catch (err) {
-      console.error('Preview render error:', err);
-      loading.textContent = '⚠️ Preview failed — you can still place your signature below.';
+      loading.textContent = '⚠️ Preview failed.';
     }
 
     (doc.signatures || []).forEach((s) => {
@@ -368,14 +352,42 @@ const Signing = (() => {
     });
   }
 
-  // ---------- place ----------
+  // FIXED: Finds the page in the exact center of your screen
+  function findVisiblePage() {
+    const wrap = document.getElementById('manualSignRenderWrap');
+    if (!wrap) return null;
+    
+    const wr = wrap.getBoundingClientRect();
+    const viewportCenterY = wr.top + wr.height / 2;
+    const pages = document.querySelectorAll('.pdf-page');
+    
+    let bestPage = pages[0];
+    let minDistance = Infinity;
+
+    for (const p of pages) {
+      const pr = p.getBoundingClientRect();
+      // If the center of the screen is inside this page, pick it immediately
+      if (viewportCenterY >= pr.top && viewportCenterY <= pr.bottom) {
+          return p;
+      }
+      
+      // Otherwise, find the closest page
+      const pageCenterY = pr.top + pr.height / 2;
+      const dist = Math.abs(viewportCenterY - pageCenterY);
+      if (dist < minDistance) {
+          minDistance = dist;
+          bestPage = p;
+      }
+    }
+    return bestPage;
+  }
+
   function place() {
     if (!pad || !pad.hasInk()) return alert('Draw or upload a signature first.');
 
     const area = document.getElementById('manualSignRenderArea');
-    const scrollWrap = document.getElementById('manualSignRenderWrap');
-
-    const pageEl = findVisiblePage() || area;
+    const pageEl = findVisiblePage();
+    if (!pageEl) return alert('Could not find a page to sign.');
 
     currentSigDataUrl = pad.toDataUrl();
 
@@ -386,31 +398,35 @@ const Signing = (() => {
     el.style.width = defaultWidth + 'px';
 
     const pr = pageEl.getBoundingClientRect();
-    const sr = scrollWrap ? scrollWrap.getBoundingClientRect() : pr;
+    const ar = area.getBoundingClientRect();
+    const sr = document.getElementById('manualSignRenderWrap').getBoundingClientRect();
 
-    const visibleTop = Math.max(0, sr.top - pr.top);
-    const visibleBottom = Math.min(pr.height, sr.bottom - pr.top);
-    const visibleHeight = Math.max(40, visibleBottom - visibleTop);
-
-    let leftPx = Math.max(0, (pr.width - defaultWidth) / 2);
-    let topPx = visibleTop + (visibleHeight / 2) - 30;
-
+    // Place it perfectly in the center of the currently visible area
+    const viewportCenterY = sr.top + sr.height / 2;
+    let topPx = viewportCenterY - pr.top - 30;
+    
+    // Clamp to ensure it starts inside the page
     const sigH = Math.max(40, defaultWidth * 0.4);
     topPx = Math.max(0, Math.min(pr.height - sigH, topPx));
-    leftPx = Math.max(0, Math.min(pr.width - defaultWidth, leftPx));
+    
+    let leftPx = Math.max(0, (pr.width - defaultWidth) / 2);
 
-    el.style.left = leftPx + 'px';
-    el.style.top  = topPx + 'px';
+    // Convert to Area coordinates
+    const areaLeft = pr.left - ar.left;
+    const areaTop = pr.top - ar.top;
+
+    el.style.left = (areaLeft + leftPx) + 'px';
+    el.style.top  = (areaTop + topPx) + 'px';
 
     const img = document.createElement('img');
     img.src = currentSigDataUrl;
+    img.draggable = false;
     el.appendChild(img);
 
     const removeBtn = document.createElement('button');
     removeBtn.type = 'button';
     removeBtn.className = 'placed-sig-remove';
     removeBtn.textContent = '✖';
-    removeBtn.title = 'Remove this signature';
     removeBtn.onclick = (ev) => {
       ev.stopPropagation();
       el.remove();
@@ -419,40 +435,22 @@ const Signing = (() => {
     };
     el.appendChild(removeBtn);
 
+    // The huge drag handle for mobile
+    const dragHandle = document.createElement('div');
+    dragHandle.className = 'placed-sig-drag';
+    dragHandle.innerHTML = '✥';
+    el.appendChild(dragHandle);
+
     const resizeHandle = document.createElement('div');
     resizeHandle.className = 'placed-sig-resize';
-    resizeHandle.title = 'Drag to resize';
     el.appendChild(resizeHandle);
 
-    pageEl.appendChild(el);
-    makeDraggable(el, pageEl);
+    area.appendChild(el);
+    makeDraggable(el, area);
     makeResizable(el, resizeHandle);
 
-    placedSigs.push({ el, dataUrl: currentSigDataUrl, container: pageEl });
+    placedSigs.push({ el, dataUrl: currentSigDataUrl, container: area });
     updateConfirmButton();
-  }
-
-  function findVisiblePage() {
-    const area = document.getElementById('manualSignRenderArea');
-    if (!area) return null;
-    const pages = area.querySelectorAll('.pdf-page');
-    if (!pages.length) return null;
-
-    const wrap = document.getElementById('manualSignRenderWrap');
-    if (!wrap) return pages[0];
-
-    const wr = wrap.getBoundingClientRect();
-    const viewportCenterY = wr.top + wr.height / 2;
-
-    for (const p of pages) {
-      const pr = p.getBoundingClientRect();
-      if (pr.top <= viewportCenterY && pr.bottom >= viewportCenterY) return p;
-    }
-    for (const p of pages) {
-      const pr = p.getBoundingClientRect();
-      if (pr.bottom > wr.top && pr.top < wr.bottom) return p;
-    }
-    return pages[0];
   }
 
   function updateConfirmButton() {
@@ -460,9 +458,7 @@ const Signing = (() => {
     btn.disabled = placedSigs.length === 0;
     const base = btn.dataset.baseLabel || btn.textContent.replace(/^\(\d+\)\s*/, '');
     btn.dataset.baseLabel = base;
-    btn.textContent = placedSigs.length > 1
-      ? `(${placedSigs.length}) ${base}`
-      : base;
+    btn.textContent = placedSigs.length > 1 ? `(${placedSigs.length}) ${base}` : base;
   }
 
   function makeDraggable(el, container) {
@@ -471,40 +467,30 @@ const Signing = (() => {
     let autoScrollDir = 0;
     let autoScrollRAF = null;
 
-    function getScrollParent(node) {
-      let p = node?.parentElement;
-      while (p && p !== document.body) {
-        const style = window.getComputedStyle(p);
-        if (/(auto|scroll)/.test(style.overflowY) && p.scrollHeight > p.clientHeight) {
-          return p;
-        }
-        p = p.parentElement;
-      }
-      return null;
-    }
-
     function updatePosition() {
       const cr = container.getBoundingClientRect();
-      el.style.left = Math.max(0, lastX - cr.left - ox) + 'px';
-      el.style.top  = Math.max(0, lastY - cr.top  - oy) + 'px';
+      // No Math.max(0) here, allows it to go negative into the page gap
+      el.style.left = (lastX - cr.left - ox) + 'px';
+      el.style.top  = (lastY - cr.top  - oy) + 'px';
     }
 
     function tickAutoScroll() {
       autoScrollRAF = null;
       if (!dragging || autoScrollDir === 0) return;
-      const sp = getScrollParent(container);
+      const sp = document.getElementById('manualSignRenderWrap'); // Hardcoded!
       if (sp) {
-        sp.scrollTop += autoScrollDir * 14;
+        sp.scrollTop += autoScrollDir * 18; // Sped up for mobile
         updatePosition();
       }
       autoScrollRAF = requestAnimationFrame(tickAutoScroll);
     }
 
     function checkAutoScroll(clientY) {
-      const sp = getScrollParent(container);
+      const sp = document.getElementById('manualSignRenderWrap');
       if (!sp) { autoScrollDir = 0; return; }
       const sr = sp.getBoundingClientRect();
-      const EDGE = 80;
+      const EDGE = Math.min(150, sr.height * 0.25); 
+      
       if (clientY > sr.bottom - EDGE) {
         autoScrollDir = 1;
         if (!autoScrollRAF) autoScrollRAF = requestAnimationFrame(tickAutoScroll);
@@ -518,6 +504,12 @@ const Signing = (() => {
 
     const down = (e) => {
       if (e.target.closest('.placed-sig-remove')) return;
+      
+      // Only drag if using the handle on mobile
+      if (e.type.startsWith('touch') && !e.target.closest('.placed-sig-drag')) {
+        return; 
+      }
+
       dragging = true;
       el.classList.add('dragging');
       const p = e.touches ? e.touches[0] : e;
@@ -536,7 +528,7 @@ const Signing = (() => {
       lastY = p.clientY;
       updatePosition();
       checkAutoScroll(p.clientY);
-      e.preventDefault();
+      if (e.cancelable) e.preventDefault(); // Important for touch
     };
 
     const up = () => {
@@ -546,10 +538,14 @@ const Signing = (() => {
       el.classList.remove('dragging');
     };
 
-    el.addEventListener('mousedown', down);
+    const dragTarget = window.innerWidth <= 768 ? el.querySelector('.placed-sig-drag') : el;
+    if (dragTarget) {
+      dragTarget.addEventListener('mousedown', down);
+      dragTarget.addEventListener('touchstart', down, { passive: false });
+    }
+    
     document.addEventListener('mousemove', move);
     document.addEventListener('mouseup', up);
-    el.addEventListener('touchstart', down, { passive: false });
     document.addEventListener('touchmove', move, { passive: false });
     document.addEventListener('touchend', up);
   }
@@ -558,12 +554,9 @@ const Signing = (() => {
     let resizing = false;
     let startX = 0;
     let startWidth = 0;
-    const MIN_W = 40;
-    const MAX_W = 800;
 
     const onDown = (e) => {
       resizing = true;
-      el.classList.add('resizing');
       const p = e.touches ? e.touches[0] : e;
       startX = p.clientX;
       startWidth = el.getBoundingClientRect().width;
@@ -575,15 +568,12 @@ const Signing = (() => {
       if (!resizing) return;
       const p = e.touches ? e.touches[0] : e;
       const deltaX = p.clientX - startX;
-      let newWidth = Math.max(MIN_W, Math.min(MAX_W, startWidth + deltaX));
+      let newWidth = Math.max(40, Math.min(800, startWidth + deltaX));
       el.style.width = newWidth + 'px';
       e.preventDefault();
     };
 
-    const onUp = () => {
-      resizing = false;
-      el.classList.remove('resizing');
-    };
+    const onUp = () => { resizing = false; };
 
     handle.addEventListener('mousedown', onDown);
     document.addEventListener('mousemove', onMove);
@@ -593,15 +583,20 @@ const Signing = (() => {
     document.addEventListener('touchend', onUp);
   }
 
-  // ---------- locate a signature on a PDF page ----------
+  // FIXED: Prevents it from being lost in the gap between pages
   function locateSignature(el, area) {
     const elRect = el.getBoundingClientRect();
     const cx = elRect.left + elRect.width / 2;
     const cy = elRect.top + elRect.height / 2;
 
     const pages = area.querySelectorAll('.pdf-page');
+    let closestPage = null;
+    let minDistance = Infinity;
+
     for (let i = 0; i < pages.length; i++) {
       const pr = pages[i].getBoundingClientRect();
+      
+      // If it's perfectly on the page
       if (cx >= pr.left && cx <= pr.right && cy >= pr.top && cy <= pr.bottom) {
         return {
           page: i,
@@ -613,16 +608,37 @@ const Signing = (() => {
           page_height: pr.height,
         };
       }
+      
+      // If in the gap between pages, calculate distance
+      const pageCenterY = pr.top + pr.height / 2;
+      const dist = Math.abs(cy - pageCenterY);
+      if (dist < minDistance) {
+          minDistance = dist;
+          closestPage = { index: i, rect: pr };
+      }
+    }
+
+    // Snap to closest page if dragged into a gap
+    if (closestPage) {
+      return {
+          page: closestPage.index,
+          x: Math.max(0, Math.min(closestPage.rect.width, elRect.left - closestPage.rect.left)),
+          y: Math.max(0, Math.min(closestPage.rect.height, elRect.top - closestPage.rect.top)),
+          width: elRect.width,
+          height: elRect.height,
+          page_width: closestPage.rect.width,
+          page_height: closestPage.rect.height,
+      };
     }
     return null;
   }
 
-  // ---------- confirm ----------
   async function confirm() {
     if (placedSigs.length === 0 || !currentDoc) {
       return alert('Place at least one signature on the document first.');
     }
 
+    const docId = currentDoc.id;
     const btn = document.getElementById('confirmManualSignBtn');
     btn.disabled = true;
     const orig = btn.textContent;
@@ -631,20 +647,18 @@ const Signing = (() => {
     const area = document.getElementById('manualSignRenderArea');
 
     try {
-      // 1. Upload each unique signature PNG
       const uniqueDataUrls = [...new Set(placedSigs.map((p) => p.dataUrl))];
       const uploaded = {};
       let idx = 0;
       for (const dataUrl of uniqueDataUrls) {
         const blob = await (await fetch(dataUrl)).blob();
         const fd = new FormData();
-        fd.append('file', blob, `sig_${currentDoc.id}_${Date.now()}_${idx}.png`);
+        fd.append('file', blob, `sig_${docId}_${Date.now()}_${idx}.png`);
         const up = await App.api('/api/documents/upload-signature', { method: 'POST', body: fd });
         uploaded[dataUrl] = up.url;
         idx++;
       }
 
-      // 2. Build the signature records with page + position info
       const sigRecords = placedSigs.map((p) => {
         const loc = locateSignature(p.el, area);
         const img = p.el.querySelector('img');
@@ -681,8 +695,7 @@ const Signing = (() => {
         };
       });
 
-      // 3. POST to server
-      await App.api(`/api/documents/${currentDoc.id}/sign`, {
+      await App.api(`/api/documents/${docId}/sign`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ signatures: sigRecords }),
@@ -692,15 +705,10 @@ const Signing = (() => {
       placedSigs = [];
       close();
 
-      // --- AUTO REFRESH LOGIC ---
       if (window.location.pathname === '/co') {
-          if (typeof Queue !== 'undefined' && typeof Queue.loadCO === 'function') {
-              await Queue.loadCO();
-          }
+          if (typeof Queue !== 'undefined' && typeof Queue.loadCO === 'function') await Queue.loadCO();
       } else {
-          if (typeof Queue !== 'undefined' && typeof Queue.load === 'function') {
-              await Queue.load();
-          }
+          if (typeof Queue !== 'undefined' && typeof Queue.load === 'function') await Queue.load();
       }
       
       if (typeof Upload !== 'undefined' && typeof Upload.refresh === 'function') Upload.refresh();
