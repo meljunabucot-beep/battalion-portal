@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from ..config import settings
 from ..database import get_db
-from ..models import User, Office, REQUESTABLE_ROLES, get_active_offices
+from ..models import User, Office, REQUESTABLE_ROLES, get_active_offices, AppConfig
 from ..auth import verify_password, hash_password, make_session, cookie_settings
 from ..deps import current_user
 from ..limiter import limiter
